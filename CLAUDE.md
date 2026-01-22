@@ -65,7 +65,7 @@ python3 -c "import torch, transformers; print(torch.__version__)"
 
 The project requires:
 - Python 3.11
-- PyTorch 2.8.0 + torch-npu 2.8.0
+- PyTorch 2.5.1 + torch-npu 2.5.1
 - transformers 4.57.x
 - CANN 8.1.RC1 (`/usr/local/Ascend/ascend-toolkit/set_env.sh`)
 - Conda environment: `npu_train` at `~/miniconda3/etc/profile.d/conda.sh`
