@@ -58,6 +58,7 @@ def benchmark_model_loading(model_path, device, rank, dtype=torch.bfloat16):
         torch_dtype=dtype,
         device_map={"": device},
         trust_remote_code=True,
+        local_files_only=True,
     )
 
     torch.npu.synchronize()
@@ -215,7 +216,7 @@ def print_comparison(results):
 def main():
     parser = argparse.ArgumentParser(description="NPU TP 性能基准测试")
     parser.add_argument("--model_path", type=str,
-                        default="/home/sd/npu_train/models/AI-ModelScope/qwen2.5-1.5b-instruct")
+                        default="/home/sd/npu_train/models/Qwen-Qwen2.5-1.5B-Instruct")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--seq_len", type=int, default=512)
     parser.add_argument("--num_steps", type=int, default=20)
