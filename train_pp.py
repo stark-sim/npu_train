@@ -64,6 +64,8 @@ def get_args():
                         help="Micro batch size for PP (default: 1)")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2,
                         help="Gradient accumulation steps (default: 2)")
+    parser.add_argument("--gradient_checkpointing", action="store_true",
+                        help="Enable gradient checkpointing to save memory")
     return parser.parse_args()
 
 
@@ -202,6 +204,16 @@ def train(args, local_rank, world_size, rank, device):
 
     model = AutoModelForCausalLM.from_pretrained(args.model_name)
 
+    # Enable gradient checkpointing if requested (before PP wrap)
+    if args.gradient_checkpointing:
+        if hasattr(model, "gradient_checkpointing_enable"):
+            model.gradient_checkpointing_enable()
+            if rank == 0:
+                print("Gradient checkpointing enabled")
+        else:
+            if rank == 0:
+                print("Warning: Model does not support gradient_checkpointing_enable()")
+
     # Wrap with pipeline parallel
     if args.pp_size > 1:
         model = PipelineParallelModel(model, args.pp_size, rank, world_size)
@@ -221,8 +233,10 @@ def train(args, local_rank, world_size, rank, device):
         batch_size=args.batch_size,
         sampler=sampler,
         collate_fn=collate_fn,
-        num_workers=2,
+        num_workers=4,
         pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True,
     )
 
     # Optimizer and scheduler

@@ -4,18 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python-based machine learning project for training small-scale LLMs on Huawei Ascend 910A NPU using PyTorch + HuggingFace transformers.
+This is a Python-based machine learning project for training LLMs on Huawei Ascend 910A NPU using PyTorch + HuggingFace transformers. It implements custom **Tensor Parallelism (TP)** for distributed training across multiple NPUs, along with Data Parallel (DDP) and Pipeline Parallel (PP) support.
 
 ## Common Commands
 
 ### Training
 ```bash
-# Quick start (default: GPT-2, ~30 minutes)
+# Single NPU training (default: GPT-2, ~30 minutes)
 chmod +x run.sh && ./run.sh
 
-# Custom training
-./run.sh --model_name distilgpt2
-./run.sh --batch_size 16 --epochs 5
+# Data Parallel training (8 NPUs)
+chmod +x run_ddp.sh && ./run_ddp.sh
+
+# Pipeline Parallel training (8 NPUs, 4-stage pipeline)
+chmod +x run_pp.sh && ./run_pp.sh
+
+# Tensor Parallel training (custom TP implementation)
+python examples/train_tp_custom.py --model_path "/path/to/model" --tp_size 4
 ```
 
 ### Model Download/Management
@@ -46,13 +51,48 @@ python3 -c "import torch_npu; print(torch.npu.is_available())"
 
 # Verify dependencies
 python3 -c "import torch, transformers; print(torch.__version__)"
+
+# Run TP tests
+python3 tests/test_tp_conversion.py
+python3 tests/test_tp_mlp_only.py
+python3 tests/test_hccl_ops.py
 ```
 
 ## Architecture
 
-### Training Flow
-1. **run.sh**: Sets up CANN environment, activates conda `npu_train`, configures proxy/HF mirror, launches `train.py`
-2. **train.py**: Main training loop with NPU device setup, model loading via HuggingFace, synthetic data generation (9 repeated text templates), forward/backward passes with gradient clipping
+### Training Scripts
+| Script | Purpose | NPUs |
+|--------|---------|------|
+| `train.py` | Single NPU baseline | 1 |
+| `train_ddp.py` | Data Parallel (replicated model) | 8 |
+| `train_pp.py` | Pipeline Parallel (layer split) | 8 |
+| `examples/train_tp*.py` | Tensor Parallel (weight split) | 2-8 |
+
+### npu_parallel Module
+
+Custom Tensor Parallelism implementation based on Megatron-LM patterns, adapted for NPU/HCCL.
+
+**tp_layers.py**: Core TP building blocks
+- `ColumnParallelLinear`: Splits weights by columns (output dimension), uses all-gather
+- `RowParallelLinear`: Splits weights by rows (input dimension), uses all-reduce
+- `AllGatherFromTensor`: Custom autograd function for HCCL compatibility
+- `TPProcessGroup`: Manages hybrid TP+DDP process groups
+
+**tp_attention.py**: TP-aware transformer components
+- `TPQKVParallel`: Combined Q/K/V projection (column parallel)
+- `TPOutputParallel`: Attention output projection (row parallel)
+- `TPAttention`: Complete multi-head attention with TP
+- `TPMLP`: SwiGLU feed-forward with TP
+
+**convert_model.py**: Model conversion utilities
+- `convert_to_tp()`: Auto-detects and converts HuggingFace models to TP
+- Supports: Qwen, Llama, Mistral, Gemma, Phi, Yi, DeepSeek, Baichuan, GPT-2
+- Two architecture patterns: `qwen_style` (separate Q,K,V) and `gpt2_style` (combined QKV)
+
+### Communication Patterns
+- **all_gather**: For column parallel (combine partial outputs from each rank)
+- **all_reduce**: For row parallel (sum partial results from each rank)
+- Backend: HCCL (Huawei Collective Communication Library)
 
 ### Model Download Utilities
 - `download_models.py`: Primary ModelScope downloader
@@ -104,3 +144,19 @@ The project requires:
 ## Data Strategy
 
 Training uses **synthetic data** (9 repeated text templates cycled for `max_samples`) to avoid network issues with HuggingFace datasets download. The data is tokenized and padded to `max_length`.
+
+## Supported Models for TP
+
+The `npu_parallel` module supports converting HuggingFace models to Tensor Parallelism:
+
+| Model Family | Status | Architecture Pattern |
+|--------------|--------|---------------------|
+| Qwen/Qwen2/Qwen2.5 | ✅ Tested | qwen_style (separate Q,K,V) |
+| GPT-2/GPT-Neo | ✅ Tested | gpt2_style (combined QKV) |
+| Llama/Llama2/Llama3 | ⚠️ Should work | qwen_style |
+| Mistral/Mixtral | ⚠️ Should work | qwen_style |
+| Gemma/Gemma2 | ⚠️ Should work | qwen_style |
+| Phi-2/Phi-3 | ⚠️ Should work | qwen_style |
+| Yi, DeepSeek, Baichuan2 | ⚠️ Should work | qwen_style |
+
+See `npu_parallel/supported_models.py` for full compatibility reference.

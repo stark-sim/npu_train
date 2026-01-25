@@ -112,7 +112,10 @@ def prepare_synthetic_data(args, tokenizer, rank):
         dataset,
         batch_size=args.batch_size,
         sampler=sampler,
-        num_workers=0,
+        num_workers=4,
+        pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True,
     )
 
     return dataloader

@@ -106,7 +106,15 @@ def main():
     dataset = torch.utils.data.TensorDataset(encodings["input_ids"], encodings["input_ids"].clone())
 
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, sampler=sampler, num_workers=0)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        sampler=sampler,
+        num_workers=4,
+        pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True,
+    )
 
     model.train()
 
