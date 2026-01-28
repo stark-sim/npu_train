@@ -57,6 +57,8 @@ def get_args():
                         help="Local rank for NPU (default: 0)")
     parser.add_argument("--max_samples", type=int, default=5000,
                         help="Max training samples (default: 5000)")
+    parser.add_argument("--gradient_checkpointing", action="store_true",
+                        help="Enable gradient checkpointing to save memory")
     return parser.parse_args()
 
 
@@ -145,6 +147,14 @@ def train(args):
     
     model = AutoModelForCausalLM.from_pretrained(args.model_name)
     model = model.to(device)
+
+    # Enable gradient checkpointing if requested
+    if args.gradient_checkpointing:
+        if hasattr(model, "gradient_checkpointing_enable"):
+            model.gradient_checkpointing_enable()
+            print("Gradient checkpointing enabled")
+        else:
+            print("Warning: Model does not support gradient_checkpointing_enable()")
     
     # Print model info
     total_params = sum(p.numel() for p in model.parameters())
@@ -159,8 +169,10 @@ def train(args):
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=collate_fn,
-        num_workers=2,
+        num_workers=4,
         pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True,
     )
     
     # Optimizer and scheduler

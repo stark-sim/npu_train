@@ -175,8 +175,10 @@ def train(args, local_rank, world_size, rank, device):
         batch_size=args.batch_size,
         sampler=sampler,
         collate_fn=collate_fn,
-        num_workers=2,
+        num_workers=4,
         pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True,
     )
 
     # Optimizer and scheduler

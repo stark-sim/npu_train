@@ -31,9 +31,9 @@ class AllGatherFromTensor(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, input, group):
+    def forward(ctx, input, group, tp_size):
         ctx.group = group
-        ctx.tp_size = dist.get_world_size(group=group)
+        ctx.tp_size = tp_size  # Use provided tp_size instead of get_world_size
 
         input_size = input.numel()
         output = torch.empty(
@@ -64,24 +64,27 @@ class AllGatherFromTensor(torch.autograd.Function):
         # Reshape to original input shape
         grad_input = grad_input.view(ctx.input_shape)
 
-        return grad_input, None
+        return grad_input, None, None
 
 
-def all_gather_forward(input_tensor, group=None):
+def all_gather_forward(input_tensor, group=None, tp_size=None):
     """
     Wrapper for AllGatherFromTensor autograd function.
 
     Args:
         input_tensor: Input tensor to gather
         group: Process group (uses WORLD if None)
+        tp_size: Tensor parallel size (uses group world size if None)
 
     Returns:
         Gathered tensor from all ranks
     """
     if group is None:
         group = dist.group.WORLD
+    if tp_size is None:
+        tp_size = dist.get_world_size(group=group)
 
-    return AllGatherFromTensor.apply(input_tensor, group)
+    return AllGatherFromTensor.apply(input_tensor, group, tp_size)
 
 
 class ColumnParallelLinear(nn.Module):
@@ -169,8 +172,8 @@ class ColumnParallelLinear(nn.Module):
             # Use the process group if set, otherwise use default
             group = self.tp_group if self.tp_group is not None else dist.group.WORLD
 
-            # Perform all_gather with custom autograd
-            gathered_tensor = all_gather_forward(out_flat, group)
+            # Perform all_gather with custom autograd, passing tp_size explicitly
+            gathered_tensor = all_gather_forward(out_flat, group, self.tp_size)
 
             # Reshape to [batch, seq_len, out_features]
             # gathered_tensor: [batch * seq_len * out_features]

@@ -28,6 +28,14 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from .tp_layers import ColumnParallelLinear, RowParallelLinear
 
+# Check if SDPA is available (PyTorch 2.0+)
+try:
+    # Test if SDPA works on current backend
+    _test_sdpa = torch.nn.functional.scaled_dot_product_attention
+    SDPA_AVAILABLE = True
+except (AttributeError, Exception):
+    SDPA_AVAILABLE = False
+
 
 class TPQKVParallel(nn.Module):
     """
@@ -188,6 +196,7 @@ class TPAttention(nn.Module):
         rope_base: int = 10000,
         rope_theta: float = 1.0,
         use_rope: bool = True,
+        use_sdpa: bool = False,  # Default to False - manual is faster on NPU
         dtype: torch.dtype = torch.float16,
         device: torch.device = None,
     ):
@@ -200,6 +209,9 @@ class TPAttention(nn.Module):
         self.head_dim = hidden_size // num_heads
         self.num_heads_per_rank = num_heads // tp_size
         self.use_rope = use_rope
+
+        # Use SDPA if available and requested
+        self.use_sdpa = use_sdpa and SDPA_AVAILABLE
 
         # QKV projection (column parallel)
         self.qkv_proj = ColumnParallelLinear(
@@ -226,7 +238,7 @@ class TPAttention(nn.Module):
         )
 
         # For models with bias
-        if hasattr(self.qkv_proj, "bias"):
+        if hasattr(self.qkv_proj, "bias") and self.qkv_proj.bias is not None:
             nn.init.zeros_(self.qkv_proj.bias)
 
         # Rotary position embedding parameters
@@ -321,6 +333,51 @@ class TPAttention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
 
+        # Use SDPA if available and enabled, otherwise fall back to manual implementation
+        if self.use_sdpa:
+            try:
+                # Scaled Dot-Product Attention (PyTorch 2.0+)
+                # May have optimized backend for NPU
+                attn_output = F.scaled_dot_product_attention(
+                    q, k, v,
+                    attn_mask=attention_mask,
+                    is_causal=(attention_mask is None),
+                    dropout_p=0.0,
+                )
+                attn_weights = None  # SDPA doesn't return weights
+            except Exception as e:
+                # Fall back to manual implementation if SDPA fails
+                if self.rank == 0:
+                    print(f"SDPA failed, falling back to manual attention: {e}")
+                self.use_sdpa = False  # Disable for future iterations
+                attn_output, attn_weights = self._manual_attention(q, k, v, attention_mask)
+        else:
+            attn_output, attn_weights = self._manual_attention(q, k, v, attention_mask)
+
+        # Transpose back: [B, S, num_heads, head_dim]
+        attn_output = attn_output.transpose(1, 2)
+        # Only call contiguous if tensor is not already contiguous
+        if not attn_output.is_contiguous():
+            attn_output = attn_output.contiguous()
+        attn_output = attn_output.view(batch, seq_len, -1)  # [B, S, H/tp]
+
+        # Output projection (row parallel)
+        attn_output = self.o_proj(attn_output)
+
+        return attn_output, attn_weights
+
+    def _manual_attention(self, q, k, v, attention_mask):
+        """
+        Manual attention implementation (fallback when SDPA is not available)
+
+        Args:
+            q, k, v: [batch, num_heads, seq_len, head_dim]
+            attention_mask: optional mask
+
+        Returns:
+            attn_output: [batch, num_heads, seq_len, head_dim]
+            attn_weights: [batch, num_heads, seq_len, seq_len]
+        """
         # Attention: Q @ K^T / sqrt(d)
         attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.head_dim)
 
@@ -333,13 +390,6 @@ class TPAttention(nn.Module):
 
         # Attention output: attn_weights @ V
         attn_output = torch.matmul(attn_weights, v)
-
-        # Transpose back: [B, S, num_heads, head_dim]
-        attn_output = attn_output.transpose(1, 2).contiguous()
-        attn_output = attn_output.view(batch, seq_len, -1)  # [B, S, H/tp]
-
-        # Output projection (row parallel)
-        attn_output = self.o_proj(attn_output)
 
         return attn_output, attn_weights
 

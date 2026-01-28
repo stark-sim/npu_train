@@ -347,6 +347,34 @@ def convert_to_tp(
     if tp_size <= 1:
         return model
 
+    # Create TP process group if world_size > tp_size
+    # This allows hybrid TP+DDP training
+    world_size = dist.get_world_size()
+    tp_group = None
+    if world_size > tp_size:
+        # Create a new process group for TP ranks
+        # Ranks 0..tp_size-1 form group 0, ranks tp_size..2*tp_size-1 form group 1, etc.
+        tp_group_rank = rank // tp_size  # Which TP group this rank belongs to
+        tp_ranks = [tp_group_rank * tp_size + i for i in range(tp_size)]
+
+        # Get the current rank's position within its TP group
+        tp_rank_in_group = rank % tp_size
+
+        # Create the TP process group
+        try:
+            tp_group = dist.new_group(ranks=tp_ranks, backend="hccl")
+        except Exception as e:
+            # If new_group fails, fall back to using world group
+            # This can happen in some distributed setups
+            tp_group = None
+    else:
+        tp_rank_in_group = rank
+
+    # Store TP group info in model for later use
+    model._tp_group = tp_group
+    model._tp_size = tp_size
+    model._tp_rank = tp_rank_in_group if world_size > tp_size else rank
+
     # Detect model type and apply appropriate conversion
     model_type = model.__class__.__name__.lower()
 
