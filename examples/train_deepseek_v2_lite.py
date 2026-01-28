@@ -89,17 +89,20 @@ def get_args():
     parser.add_argument("--dtype", type=str, default="float32",
                         choices=["float32", "float16", "bfloat16"],
                         help="Model dtype (default: float32 for stability)")
+    parser.add_argument("--num_steps", type=int, default=20,
+                        help="Number of training steps (default: 20)")
     return parser.parse_args()
 
 
 def prepare_synthetic_data(args, tokenizer, rank):
-    """Generate minimal synthetic training data"""
+    """Generate minimal synthetic training data with infinite repeat"""
     sample_texts = [
         "The quick brown fox jumps over the lazy dog. " * 20,
         "Machine learning transforms artificial intelligence. " * 20,
     ]
 
-    max_samples = 20  # Very small for quick testing
+    # Create enough samples for at least one epoch
+    max_samples = max(args.num_steps * args.batch_size, 100)
     texts = [sample_texts[i % len(sample_texts)] for i in range(max_samples)]
 
     encodings = tokenizer(
@@ -114,19 +117,16 @@ def prepare_synthetic_data(args, tokenizer, rank):
     labels = input_ids.clone()
 
     dataset = torch.utils.data.TensorDataset(input_ids, labels)
-    sampler = DistributedSampler(
-        dataset,
-        num_replicas=dist.get_world_size(),
-        rank=rank,
-        shuffle=True,
-    )
 
+    # Use DataLoader without DistributedSampler for simplicity
+    # We'll handle rank-specific data in the training loop
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
-        sampler=sampler,
+        shuffle=True,
         num_workers=2,
         pin_memory=True,
+        drop_last=True,
     )
 
     return dataloader
@@ -254,7 +254,7 @@ def main():
     )
 
     # Scheduler
-    num_training_steps = 20  # Very small for testing
+    num_training_steps = args.num_steps  # Use argument
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
         num_warmup_steps=args.warmup_steps,
@@ -272,54 +272,53 @@ def main():
 
     step = 0
     start_time = time.time()
+    epoch = 0
 
-    for epoch in range(args.epochs):
-        dataloader.sampler.set_epoch(epoch)
+    # Use itertools.cycle to create infinite dataloader
+    import itertools
+    dataloader_iterator = itertools.cycle(dataloader)
 
-        for batch_idx, (input_ids, labels) in enumerate(dataloader):
-            input_ids = input_ids.to(device)
-            labels = labels.to(device)
+    while step < num_training_steps:
+        input_ids, labels = next(dataloader_iterator)
 
-            # Forward pass
-            outputs = model(input_ids=input_ids, labels=labels, use_cache=False)
-            loss = outputs.loss
+        input_ids = input_ids.to(device)
+        labels = labels.to(device)
 
-            # Collect auxiliary losses from MoE layers
-            aux_loss = torch.zeros(1, device=device)
-            for module in model.modules():
-                if hasattr(module, 'last_aux_loss'):
-                    aux_loss += module.last_aux_loss
+        # Forward pass
+        outputs = model(input_ids=input_ids, labels=labels, use_cache=False)
+        loss = outputs.loss
 
-            # Combine losses
-            total_loss = loss + args.aux_loss_coef * aux_loss
+        # Collect auxiliary losses from MoE layers
+        aux_loss = torch.zeros(1, device=device)
+        for module in model.modules():
+            if hasattr(module, 'last_aux_loss'):
+                aux_loss += module.last_aux_loss
 
-            # Backward pass
-            total_loss.backward()
+        # Combine losses
+        total_loss = loss + args.aux_loss_coef * aux_loss
 
-            # Sync gradients
-            if args.tp_size > 1:
-                sync_gradients_tp(model, args.tp_size)
+        # Backward pass
+        total_loss.backward()
 
-            optimizer.step()
-            optimizer.zero_grad()
-            scheduler.step()
+        # Sync gradients
+        if args.tp_size > 1:
+            sync_gradients_tp(model, args.tp_size)
 
-            # Logging
-            if rank == 0 and step % args.log_interval == 0:
-                lr = scheduler.get_last_lr()[0]
-                loss_val = loss.item()
-                aux_val = aux_loss.item()
-                elapsed = time.time() - start_time
-                print(f"Step {step}/{num_training_steps} | "
-                      f"Loss: {loss_val:.4f} | Aux: {aux_val:.6f} | "
-                      f"LR: {lr:.2e} | Time: {elapsed:.1f}s")
+        optimizer.step()
+        optimizer.zero_grad()
+        scheduler.step()
 
-            step += 1
-            if step >= num_training_steps:
-                break
+        # Logging
+        if rank == 0 and step % args.log_interval == 0:
+            lr = scheduler.get_last_lr()[0]
+            loss_val = loss.item()
+            aux_val = aux_loss.item()
+            elapsed = time.time() - start_time
+            print(f"Step {step}/{num_training_steps} | "
+                  f"Loss: {loss_val:.4f} | Aux: {aux_val:.6f} | "
+                  f"LR: {lr:.2e} | Time: {elapsed:.1f}s")
 
-        if step >= num_training_steps:
-            break
+        step += 1
 
     # Cleanup
     dist.destroy_process_group()
