@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-Download Qwen2.5 models from ModelScope with only essential formats
+Download models from ModelScope/HuggingFace with only essential formats
 - safetensors (PyTorch weights)
 - config, tokenizer, generation_config
+
+Supports:
+- Qwen2.5 series (dense models)
+- DeepSeek-V2-Lite (MoE model)
+- Mixtral-8x7B (MoE model)
 """
 
 import os
@@ -14,12 +19,22 @@ sys.path.insert(0, '/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packa
 
 from modelscope.hub.snapshot_download import snapshot_download
 
-# Model list - Qwen2.5 instruct versions
-MODELS = [
+# Model list - Dense models
+DENSE_MODELS = [
     "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-7B-Instruct", 
+    "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen2.5-14B-Instruct",
 ]
+
+# MoE models (Mixture-of-Experts)
+MOE_MODELS = [
+    "deepseek-ai/DeepSeek-V2-Lite",  # 16B total, 2B activated per token
+    # "mistralai/Mixtral-8x7B-v0.1",  # Optional: Mixtral 8x7B
+    # "Qwen/Qwen1.5-MoE-A2.7B",       # Optional: Qwen1.5 MoE
+]
+
+# All models
+MODELS = DENSE_MODELS + MOE_MODELS
 
 # Base directory for models
 BASE_DIR = "/home/sd/npu_train/models"
@@ -99,31 +114,54 @@ def clean_non_essential(model_dir):
 
 def main():
     """Main download function"""
-    print("Starting Qwen2.5 model downloads...")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Download models for NPU training")
+    parser.add_argument("--moe-only", action="store_true", help="Only download MoE models")
+    parser.add_argument("--dense-only", action="store_true", help="Only download dense models")
+    parser.add_argument("--model", type=str, help="Download specific model by name")
+    args = parser.parse_args()
+
+    # Select models to download
+    if args.model:
+        models_to_download = [args.model]
+    elif args.moe_only:
+        models_to_download = MOE_MODELS
+    elif args.dense_only:
+        models_to_download = DENSE_MODELS
+    else:
+        models_to_download = MODELS
+
+    print("Starting model downloads...")
     print(f"Target directory: {BASE_DIR}")
-    print(f"Models to download: {len(MODELS)}")
-    
+    print(f"Models to download: {len(models_to_download)}")
+
+    # Show which models are MoE
+    for m in models_to_download:
+        moe_tag = " [MoE]" if m in MOE_MODELS else ""
+        print(f"  - {m}{moe_tag}")
+
     # Check base directory
     base_path = Path(BASE_DIR)
     base_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Download models
     success_count = 0
-    for model in MODELS:
+    for model in models_to_download:
         if download_model(model):
             success_count += 1
-    
+
     # Summary
     print(f"\n=== Download Summary ===")
-    print(f"Successfully downloaded: {success_count}/{len(MODELS)} models")
-    
+    print(f"Successfully downloaded: {success_count}/{len(models_to_download)} models")
+
     # Total size
     total_size = 0
-    for model_name in MODELS:
+    for model_name in models_to_download:
         model_dir = Path(BASE_DIR) / model_name.replace("/", "-")
         if model_dir.exists():
             total_size += sum(f.stat().st_size for f in model_dir.rglob('*') if f.is_file())
-    
+
     print(f"Total size: {total_size / (1024**3):.2f} GB")
     print(f"Models saved in: {BASE_DIR}")
 

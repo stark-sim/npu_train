@@ -24,9 +24,9 @@ SUPPORTED_MODELS = {
     # Mistral Series
     "mistral": {
         "models": ["mistralai/Mistral-7B-v0.1", "mistralai/Mistral-7B-v0.3", "mistralai/Mixtral-8x7B-v0.1"],
-        "architecture": "GPT + SwiGLU",
+        "architecture": "GPT + SwiGLU + MoE (Mixtral)",
         "tested": False,
-        "notes": "Should work, MoE experts not yet parallelized"
+        "notes": "Dense models work. MoE (Mixtral-8x7B) now supported with TP!"
     },
 
     # Gemma Series (Google)
@@ -55,10 +55,18 @@ SUPPORTED_MODELS = {
 
     # DeepSeek Series
     "deepseek": {
-        "models": ["deepseek-ai/deepseek-coder-6.7b", "deepseek-ai/DeepSeek-V2-Lite"],
-        "architecture": "GPT + SwiGLU",
+        "models": ["deepseek-ai/deepseek-coder-6.7b", "deepseek-ai/DeepSeek-V2-Lite", "deepseek-ai/DeepSeek-V2-Chat"],
+        "architecture": "GPT + SwiGLU + MoE (DeepSeek-V2/V3)",
         "tested": False,
-        "notes": "Should work, MoE not yet supported"
+        "notes": "Dense models work. MoE (DeepSeek-V2) now supported with TP! Use train_deepseek_v2_lite.py for V2-Lite."
+    },
+
+    # Qwen2MoE Series
+    "qwen2moe": {
+        "models": ["Qwen/Qwen1.5-MoE-A2.7B", "Qwen/Qwen2-57B-A14B"],
+        "architecture": "GPT + SwiGLU + MoE",
+        "tested": False,
+        "notes": "MoE now supported with TP!"
     },
 
     # Baichuan Series
@@ -92,6 +100,12 @@ ARCHITECTURE_PATTERNS = {
         "mlp": "C_fc projection (Column Parallel)",
         "mlp_out": "C_proj projection (Row Parallel)",
         "models": ["GPT-2", "GPT-Neo"]
+    },
+    "moe_style": {
+        "attention": "Separate Q, K, V projections (Column Parallel)",
+        "attention_out": "O projection (Row Parallel)",
+        "moe": "Router (top-k) + Sharded Experts (Expert Parallelism)",
+        "models": ["DeepSeek-V2", "DeepSeek-V3", "Mixtral-8x7B", "Qwen2MoE"]
     },
 }
 
