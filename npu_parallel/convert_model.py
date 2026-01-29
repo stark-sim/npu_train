@@ -31,6 +31,164 @@ from typing import Optional
 
 from .tp_layers import ColumnParallelLinear, RowParallelLinear
 from .tp_attention import TPAttention, TPMLP
+from .tp_moe import TPMoELayer, convert_moe_layer_to_tp, convert_deepseek_v2_moe_to_tp
+
+
+def convert_deepseek_v2_attention_to_tp(
+    attention: nn.Module,
+    tp_size: int,
+    rank: int,
+) -> nn.Module:
+    """
+    Convert DeepSeek-V2 MLA (Multi-head Latent Attention) to TP
+
+    DeepSeek-V2 uses compressed KV cache with MLA:
+    - q_proj: Q projection (standard)
+    - kv_a_proj_with_mqa: Compressed KV projection
+    - kv_b_proj: KV decompression
+    - o_proj: Output projection
+
+    For simplicity, we only TP the output projection (row parallel)
+    and keep Q, KV projections replicated.
+    """
+    # Output projection: Row parallel
+    if hasattr(attention, 'o_proj'):
+        o_proj = attention.o_proj
+        in_features = o_proj.in_features
+        out_features = o_proj.out_features
+        weight_dtype = o_proj.weight.dtype
+        device = o_proj.weight.device
+
+        row_linear = RowParallelLinear(
+            in_features,
+            out_features,
+            tp_size=tp_size,
+            rank=rank,
+            bias=False,
+            input_is_parallel=False,  # Input is full size from attention
+            dtype=weight_dtype,
+            device=device,
+        )
+        # Copy weight (row parallel splits input dimension, which is intermediate_size)
+        in_per_rank = in_features // tp_size
+        start_idx = rank * in_per_rank
+        end_idx = start_idx + in_per_rank
+        row_linear.weight.data.copy_(o_proj.weight[:, start_idx:end_idx])
+
+        attention.o_proj = row_linear
+
+    return attention
+
+
+def convert_deepseek_v2_block_to_tp(
+    decoder_layer: nn.Module,
+    tp_size: int,
+    rank: int,
+) -> nn.Module:
+    """
+    Convert a DeepSeek-V2 decoder block to TP
+
+    DeepSeek-V2 block structure:
+        - self_attn: DeepseekV2Attention (MLA)
+        - mlp: DeepseekV2MLP or DeepseekV2MoE
+
+    Args:
+        decoder_layer: DeepseekV2DecoderLayer
+        tp_size: Tensor parallel size
+        rank: Current rank
+
+    Returns:
+        Modified decoder layer
+    """
+    # Convert attention (MLA) - only o_proj for now
+    if hasattr(decoder_layer, 'self_attn'):
+        decoder_layer.self_attn = convert_deepseek_v2_attention_to_tp(
+            decoder_layer.self_attn,
+            tp_size,
+            rank
+        )
+
+    # Convert MLP/MoE
+    if hasattr(decoder_layer, 'mlp'):
+        mlp = decoder_layer.mlp
+        mlp_type = type(mlp).__name__
+
+        if 'DeepseekV2MoE' in mlp_type:
+            # MoE layer - shard experts
+            if tp_size > 1:
+                # Get dimensions
+                if hasattr(mlp, 'experts') and len(mlp.experts) > 0:
+                    expert = mlp.experts[0]
+                    hidden_size = expert.gate_proj.in_features
+                    intermediate_size = expert.gate_proj.out_features
+
+                decoder_layer.mlp = convert_deepseek_v2_moe_to_tp(
+                    mlp, tp_size, rank,
+                    hidden_size=hidden_size,
+                    intermediate_size=intermediate_size,
+                )
+
+        elif 'DeepseekV2MLP' in mlp_type:
+            # Dense MLP - apply standard TP
+            if tp_size > 1:
+                # Gate projection: Column parallel
+                if hasattr(mlp, 'gate_proj'):
+                    gate_proj = mlp.gate_proj
+                    mlp.gate_proj = convert_linear_to_tp(
+                        gate_proj, tp_size, rank,
+                        column=True, gather_output=False
+                    )
+
+                # Up projection: Column parallel
+                if hasattr(mlp, 'up_proj'):
+                    up_proj = mlp.up_proj
+                    mlp.up_proj = convert_linear_to_tp(
+                        up_proj, tp_size, rank,
+                        column=True, gather_output=False
+                    )
+
+                # Down projection: Row parallel
+                if hasattr(mlp, 'down_proj'):
+                    down_proj = mlp.down_proj
+                    mlp.down_proj = convert_linear_to_tp(
+                        down_proj, tp_size, rank,
+                        column=False, input_is_parallel=True
+                    )
+
+    return decoder_layer
+
+
+def convert_deepseek_v2_model_to_tp(
+    model: nn.Module,
+    tp_size: int,
+    rank: int,
+) -> nn.Module:
+    """
+    Convert a DeepSeek-V2 model to tensor parallelism
+
+    Args:
+        model: DeepseekV2ForCausalLM
+        tp_size: Tensor parallel size
+        rank: Current rank
+
+    Returns:
+        TP-converted model
+    """
+    # Convert each decoder layer
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        for i, layer in enumerate(model.model.layers):
+            model.model.layers[i] = convert_deepseek_v2_block_to_tp(layer, tp_size, rank)
+
+    # LM head: column parallel with gather
+    if hasattr(model, "lm_head"):
+        lm_head = model.lm_head
+        model.lm_head = convert_linear_to_tp(
+            lm_head, tp_size, rank,
+            column=True, gather_output=True
+        )
+
+    return model
+
 
 
 def convert_linear_to_tp(
@@ -141,8 +299,8 @@ def convert_qwen_block_to_tp(
             - q_proj, k_proj, v_proj: Column parallel (with gather for Q)
             - o_proj: Row parallel
         - mlp:
-            - gate_proj, up_proj: Column parallel
-            - down_proj: Row parallel
+            - For dense models: gate_proj, up_proj, down_proj (SwiGLU)
+            - For MoE models: experts, gate (DeepSeek-V2 style)
 
     Args:
         decoder_layer: QwenDecoderLayer or similar
@@ -171,21 +329,88 @@ def convert_qwen_block_to_tp(
     o_proj = decoder_layer.self_attn.o_proj
     decoder_layer.self_attn.o_proj = convert_linear_to_tp(o_proj, tp_size, rank, column=False, input_is_parallel=False)
 
-    # Convert MLP
-    # Gate projection: Column parallel
-    if hasattr(decoder_layer.mlp, "gate_proj"):
-        gate_proj = decoder_layer.mlp.gate_proj
-        decoder_layer.mlp.gate_proj = convert_linear_to_tp(gate_proj, tp_size, rank, column=True, gather_output=False)
+    # Convert MLP - Check if this is a MoE layer
+    if hasattr(decoder_layer, 'mlp'):
+        mlp = decoder_layer.mlp
 
-    # Up projection: Column parallel
-    if hasattr(decoder_layer.mlp, "up_proj"):
-        up_proj = decoder_layer.mlp.up_proj
-        decoder_layer.mlp.up_proj = convert_linear_to_tp(up_proj, tp_size, rank, column=True, gather_output=False)
+        # Check for MoE structure (DeepSeek-V2, Mixtral, Qwen2MoE patterns)
+        is_moe = False
 
-    # Down projection: Row parallel
-    if hasattr(decoder_layer.mlp, "down_proj"):
-        down_proj = decoder_layer.mlp.down_proj
-        decoder_layer.mlp.down_proj = convert_linear_to_tp(down_proj, tp_size, rank, column=False, input_is_parallel=True)
+        # Pattern 1: DeepSeek-V2 style (DeepseekV2MoE with experts, gate, shared_experts)
+        # Check class name for more specific detection
+        mlp_class_name = type(mlp).__name__
+        if 'DeepseekV2MoE' in mlp_class_name or (hasattr(mlp, 'experts') and hasattr(mlp, 'gate')):
+            is_moe = True
+            if tp_size > 1:
+                # DeepSeek-V2 MoE structure:
+                # - mlp.experts: ModuleList of DeepseekV2MLP (64 experts)
+                # - mlp.gate: MoEGate (router)
+                # - mlp.shared_experts: DeepseekV2MLP (shared experts, optional)
+
+                # Get dimensions from experts
+                if hasattr(mlp, 'experts') and len(mlp.experts) > 0:
+                    expert = mlp.experts[0]
+                    # DeepseekV2MLP has gate_proj, up_proj, down_proj
+                    if hasattr(expert, 'gate_proj'):
+                        hidden_size = expert.gate_proj.in_features
+                        intermediate_size = expert.gate_proj.out_features
+
+                # For DeepSeek-V2, we shard experts across TP ranks
+                # Each rank gets num_experts // tp_size experts
+                from .tp_moe import convert_deepseek_v2_moe_to_tp
+                decoder_layer.mlp = convert_deepseek_v2_moe_to_tp(
+                    mlp, tp_size, rank,
+                    hidden_size=hidden_size,
+                    intermediate_size=intermediate_size,
+                )
+
+        # Pattern 2: Mixtral style (block_sparse_moe.experts, block_sparse_moe.gate)
+        elif hasattr(mlp, 'block_sparse_moe'):
+            is_moe = True
+            block_moe = mlp.block_sparse_moe
+            if hasattr(block_moe, 'experts') and hasattr(block_moe, 'gate'):
+                # Access through mlp.block_sparse_moe
+                if tp_size > 1:
+                    hidden_size = block_moe.experts[0].w1.in_features
+                    intermediate_size = block_moe.experts[0].w1.out_features
+
+                    # Convert the inner MoE layer
+                    converted_moe = convert_moe_layer_to_tp(
+                        block_moe, tp_size, rank,
+                        hidden_size=hidden_size,
+                        intermediate_size=intermediate_size,
+                    )
+                    mlp.block_sparse_moe = converted_moe
+
+        # Pattern 3: Qwen2MoE style (mlp.num_experts, mlp.experts)
+        elif hasattr(mlp, 'num_experts') and hasattr(mlp, 'experts'):
+            is_moe = True
+            if tp_size > 1:
+                hidden_size = mlp.experts[0].gate_proj.in_features if hasattr(mlp.experts[0], 'gate_proj') else 4096
+                intermediate_size = mlp.experts[0].gate_proj.out_features if hasattr(mlp.experts[0], 'gate_proj') else 1536
+
+                decoder_layer.mlp = convert_moe_layer_to_tp(
+                    mlp, tp_size, rank,
+                    hidden_size=hidden_size,
+                    intermediate_size=intermediate_size,
+                )
+
+        # If not MoE, convert as standard dense MLP
+        if not is_moe:
+            # Gate projection: Column parallel
+            if hasattr(decoder_layer.mlp, "gate_proj"):
+                gate_proj = decoder_layer.mlp.gate_proj
+                decoder_layer.mlp.gate_proj = convert_linear_to_tp(gate_proj, tp_size, rank, column=True, gather_output=False)
+
+            # Up projection: Column parallel
+            if hasattr(decoder_layer.mlp, "up_proj"):
+                up_proj = decoder_layer.mlp.up_proj
+                decoder_layer.mlp.up_proj = convert_linear_to_tp(up_proj, tp_size, rank, column=True, gather_output=False)
+
+            # Down projection: Row parallel
+            if hasattr(decoder_layer.mlp, "down_proj"):
+                down_proj = decoder_layer.mlp.down_proj
+                decoder_layer.mlp.down_proj = convert_linear_to_tp(down_proj, tp_size, rank, column=False, input_is_parallel=True)
 
     return decoder_layer
 
@@ -325,6 +550,7 @@ def convert_to_tp(
     Convert a HuggingFace model to tensor parallelism
 
     Automatically detects model type and applies appropriate conversion.
+    Supports both dense models and MoE models (DeepSeek-V2, Mixtral, Qwen2MoE).
 
     Args:
         model: HuggingFace model (AutoModelForCausalLM)
@@ -343,13 +569,46 @@ def convert_to_tp(
         >>> rank = dist.get_rank()
         >>> model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-7B-Instruct")
         >>> model = convert_to_tp(model, tp_size=4, rank=rank)
+
+    For MoE models:
+        >>> model = AutoModelForCausalLM.from_pretrained("deepseek-ai/DeepSeek-V2-Lite")
+        >>> model = convert_to_tp(model, tp_size=4, rank=rank)
     """
     if tp_size <= 1:
         return model
 
+    # Check if model is MoE
+    is_moe = False
+    model_type = model.__class__.__name__.lower()
+
+    # Detect MoE by checking model structure
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        if len(model.model.layers) > 0:
+            first_layer = model.model.layers[0]
+            if hasattr(first_layer, "mlp"):
+                # DeepSeek-V2 MoE pattern
+                if hasattr(first_layer.mlp, "experts") and hasattr(first_layer.mlp, "gate"):
+                    is_moe = True
+                # Mixtral MoE pattern
+                elif hasattr(first_layer.mlp, "block_sparse_moe"):
+                    is_moe = True
+                # Qwen2MoE pattern
+                elif hasattr(first_layer.mlp, "num_experts"):
+                    is_moe = True
+
+    # Print MoE detection info
+    if rank == 0 and is_moe:
+        print(f"[MoE Detection] Model {model_type} has MoE architecture")
+        print(f"[MoE Detection] TP will be applied to both attention and MoE layers")
+
     # Create TP process group if world_size > tp_size
     # This allows hybrid TP+DDP training
-    world_size = dist.get_world_size()
+    try:
+        world_size = dist.get_world_size()
+    except (ValueError, RuntimeError):
+        # Distributed not initialized, use tp_size as world_size
+        world_size = tp_size
+
     tp_group = None
     if world_size > tp_size:
         # Create a new process group for TP ranks
@@ -374,14 +633,21 @@ def convert_to_tp(
     model._tp_group = tp_group
     model._tp_size = tp_size
     model._tp_rank = tp_rank_in_group if world_size > tp_size else rank
+    model._is_moe = is_moe
 
     # Detect model type and apply appropriate conversion
     model_type = model.__class__.__name__.lower()
 
-    # Modern LLMs with GPT-style attention + SwiGLU MLP
+    # Check for DeepSeek-V2 specifically (has MLA attention + MoE)
+    if "deepseek" in model_type and "v2" in model_type:
+        if rank == 0:
+            print(f"[DeepSeek-V2 Detection] Using specialized DeepSeek-V2 TP conversion")
+        return convert_deepseek_v2_model_to_tp(model, tp_size, rank)
+
+    # Modern LLMs with GPT-style attention + SwiGLU MLP or MoE
     # All use: separate Q,K,V projections + gate/up/down MLP structure
     qwen_style_models = ["qwen", "llama", "mistral", "mixtral", "gemma",
-                         "phi", "yi", "deepseek", "baichuan", "internlm"]
+                         "phi", "yi", "baichuan", "internlm"]
 
     if any(name in model_type for name in qwen_style_models):
         return convert_qwen_model_to_tp(model, tp_size, rank)
