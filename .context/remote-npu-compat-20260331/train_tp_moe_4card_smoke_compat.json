@@ -1,0 +1,121 @@
+{
+  "context": {
+    "completed_step": 0,
+    "max_steps": 1,
+    "model_path": "/home/sd/npu_train/models/deepseek-ai-DeepSeek-V2-Lite",
+    "script": "train_tp_moe.py",
+    "tp_size": 4,
+    "world_size": 4
+  },
+  "report": {
+    "device_type": "npu",
+    "error_signatures": {
+      "patterns": {
+        "acl_runtime": [
+          "500002",
+          "aclop",
+          "acl",
+          "aicore",
+          "err99999",
+          "ei9999",
+          "ge error",
+          "inner error",
+          "engine_place.cc"
+        ],
+        "hccl_runtime": [
+          "hccl",
+          "hcom",
+          "allreduce",
+          "all_to_all",
+          "ranktable"
+        ],
+        "memory": [
+          "out of memory",
+          "oom",
+          "memory allocation",
+          "alloc failed",
+          "cannot allocate memory",
+          "unable to mmap"
+        ],
+        "shape_or_dtype": [
+          "shape",
+          "dimension",
+          "size mismatch",
+          "dtype",
+          "scalar type",
+          "storage_offset",
+          "untrustworthy"
+        ],
+        "timeout": [
+          "timeout",
+          "timed out",
+          "watchdog"
+        ],
+        "unsupported_op": [
+          "not implemented",
+          "unsupported",
+          "does not support",
+          "not support",
+          "reduceany"
+        ]
+      },
+      "recommendations": {
+        "acl_runtime": "Enable fallback mode, reduce operator shape complexity, and verify CANN op support matrix.",
+        "hccl_runtime": "Check rank topology and timeout settings, then isolate communication path with minimal repro.",
+        "memory": "Reduce batch/sequence length, enable checkpointing, and inspect allocator split-size settings.",
+        "shape_or_dtype": "Validate tensor shape/dtype contracts before op invocation on NPU.",
+        "timeout": "Increase HCCL timeout and pre-run warmup to amortize first-step compile latency.",
+        "unknown": "Capture full traceback and add a new signature mapping entry with mitigation guidance.",
+        "unsupported_op": "Keep fallback for continuity and replace unsupported op with equivalent supported kernel."
+      }
+    },
+    "fallback_stats": {
+      "any": {
+        "attempts": 832,
+        "count": 0,
+        "fallback_ratio": 0.0,
+        "fallback_time_ms": 0.0,
+        "last_error": null,
+        "last_error_class": null,
+        "primary_failures": 0,
+        "primary_success": 832,
+        "primary_time_ms": 10112.497,
+        "recommended_action": "Capture full traceback and add a new signature mapping entry with mitigation guidance."
+      },
+      "softmax": {
+        "attempts": 52,
+        "count": 0,
+        "fallback_ratio": 0.0,
+        "fallback_time_ms": 0.0,
+        "last_error": null,
+        "last_error_class": null,
+        "primary_failures": 0,
+        "primary_success": 52,
+        "primary_time_ms": 1.194,
+        "recommended_action": "Capture full traceback and add a new signature mapping entry with mitigation guidance."
+      }
+    },
+    "ops": {
+      "any": true,
+      "nonzero": true,
+      "softmax": true,
+      "topk": true
+    },
+    "perf_counters": {
+      "overall_fallback_ratio": 0.0,
+      "total_attempts": 884,
+      "total_fallback_count": 0,
+      "total_fallback_time_ms": 0.0,
+      "total_primary_time_ms": 10113.691
+    },
+    "policy": {
+      "mode": "warn"
+    },
+    "runtime": {
+      "device_count": 8,
+      "npu_available": true,
+      "torch_npu_version": "2.5.1",
+      "torch_version": "2.5.1"
+    }
+  }
+}

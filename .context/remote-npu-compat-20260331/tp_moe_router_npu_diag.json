@@ -1,0 +1,38 @@
+{
+  "fallback_stats": {
+    "softmax": {
+      "attempts": 1,
+      "count": 0,
+      "fallback_ratio": 0.0,
+      "fallback_time_ms": 0.0,
+      "last_error": null,
+      "last_error_class": null,
+      "primary_failures": 0,
+      "primary_success": 1,
+      "primary_time_ms": 0.081,
+      "recommended_action": "Capture full traceback and add a new signature mapping entry with mitigation guidance."
+    },
+    "topk": {
+      "attempts": 1,
+      "count": 0,
+      "fallback_ratio": 0.0,
+      "fallback_time_ms": 0.0,
+      "last_error": null,
+      "last_error_class": null,
+      "primary_failures": 0,
+      "primary_success": 1,
+      "primary_time_ms": 0.276,
+      "recommended_action": "Capture full traceback and add a new signature mapping entry with mitigation guidance."
+    }
+  },
+  "indices_shape": [16, 2],
+  "logits_shape": [2, 8, 16],
+  "perf_counters": {
+    "overall_fallback_ratio": 0.0,
+    "total_attempts": 2,
+    "total_fallback_count": 0,
+    "total_fallback_time_ms": 0.0,
+    "total_primary_time_ms": 0.357
+  },
+  "weights_shape": [16, 2]
+}

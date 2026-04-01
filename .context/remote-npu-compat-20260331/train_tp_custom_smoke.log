@@ -1,0 +1,122 @@
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+[Rank 0] NPU device: npu:0
+[Rank 0] World size: 1
+[Compatibility Report]
+{
+  "device_type": "npu",
+  "error_signatures": {
+    "patterns": {
+      "acl_runtime": [
+        "500002",
+        "aclop",
+        "acl",
+        "aicore",
+        "err99999",
+        "ei9999",
+        "ge error",
+        "inner error",
+        "engine_place.cc"
+      ],
+      "hccl_runtime": [
+        "hccl",
+        "hcom",
+        "allreduce",
+        "all_to_all",
+        "ranktable"
+      ],
+      "memory": [
+        "out of memory",
+        "oom",
+        "memory allocation",
+        "alloc failed",
+        "cannot allocate memory",
+        "unable to mmap"
+      ],
+      "shape_or_dtype": [
+        "shape",
+        "dimension",
+        "size mismatch",
+        "dtype",
+        "scalar type",
+        "storage_offset",
+        "untrustworthy"
+      ],
+      "timeout": [
+        "timeout",
+        "timed out",
+        "watchdog"
+      ],
+      "unsupported_op": [
+        "not implemented",
+        "unsupported",
+        "does not support",
+        "not support",
+        "reduceany"
+      ]
+    },
+    "recommendations": {
+      "acl_runtime": "Enable fallback mode, reduce operator shape complexity, and verify CANN op support matrix.",
+      "hccl_runtime": "Check rank topology and timeout settings, then isolate communication path with minimal repro.",
+      "memory": "Reduce batch/sequence length, enable checkpointing, and inspect allocator split-size settings.",
+      "shape_or_dtype": "Validate tensor shape/dtype contracts before op invocation on NPU.",
+      "timeout": "Increase HCCL timeout and pre-run warmup to amortize first-step compile latency.",
+      "unknown": "Capture full traceback and add a new signature mapping entry with mitigation guidance.",
+      "unsupported_op": "Keep fallback for continuity and replace unsupported op with equivalent supported kernel."
+    }
+  },
+  "fallback_stats": {},
+  "ops": {
+    "any": true,
+    "nonzero": true,
+    "softmax": true,
+    "topk": true
+  },
+  "perf_counters": {
+    "overall_fallback_ratio": 0.0,
+    "total_attempts": 0,
+    "total_fallback_count": 0,
+    "total_fallback_time_ms": 0,
+    "total_primary_time_ms": 0
+  },
+  "policy": {
+    "mode": "warn"
+  },
+  "runtime": {
+    "device_count": 8,
+    "npu_available": true,
+    "torch_npu_version": "2.5.1",
+    "torch_version": "2.5.1"
+  }
+}
+
+============================================================
+Tensor Parallel Training - Custom NPU TP
+============================================================
+Model: /home/sd/npu_train/models/Qwen-Qwen2.5-1.5B-Instruct
+TP Size: 1
+World Size: 1
+Batch Size: 1
+Max Length: 64
+Device: NPU
+============================================================
+
+`torch_dtype` is deprecated! Use `dtype` instead!
+Total parameters: 1,543,714,304
+Expected parameters per TP rank: 1,543,714,304
+
+Starting training...
+Total steps: 2
+Log interval: 2
+[rank0]:[W331 16:00:49.452127990 compiler_depend.ts:79] Warning: [Check][offset] Check input storage_offset[%ld] = 0 failed, result is untrustworthy64 (function operator())
+.......................Step 0/2 | Loss: 0.7036 | LR: 2.00e-05 | Tokens/sec: 0
+.
+[Rank 0] Final model saved to artifacts/20260331_npu_compat/train_tp_custom_smoke/final_model/rank_0
+
+Training completed!

@@ -1,0 +1,7 @@
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+`torch_dtype` is deprecated! Use `dtype` instead!
+[W331 17:49:17.518035270 compiler_depend.ts:47] Warning: The oprator of ne is executed, Currently High Accuracy but Low Performance OP with 64-bit has been used, Please Do Some Cast at Python Functions with 32-bit for Better Performance! (function operator())
+.TP_DONE 8.877429962158203

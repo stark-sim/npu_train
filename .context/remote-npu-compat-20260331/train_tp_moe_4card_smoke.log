@@ -1,0 +1,196 @@
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+[W331 16:38:38.956890030 compiler_depend.ts:873] Warning: The HCCL execution timeout 7200000ms is bigger than watchdog timeout 1800000ms which is set by init_process_group! The plog may not be recorded. (function ProcessGroupHCCL)
+[Rank 3] NPU device: npu:3
+[Rank 3] World size: 4
+[Rank 3] HCCL timeout: 7200s
+`torch_dtype` is deprecated! Use `dtype` instead!
+[Rank 0] NPU device: npu:0
+[Rank 0] World size: 4
+[Rank 0] HCCL timeout: 7200s
+
+============================================================
+Tensor Parallel Training - MoE Models
+============================================================
+Model: /home/sd/npu_train/models/deepseek-ai-DeepSeek-V2-Lite
+TP Size: 4
+World Size: 4
+Batch Size: 1
+Max Length: 64
+Device: NPU
+Aux Loss Coef: 0.01
+============================================================
+
+[Rank 1] NPU device: npu:1
+[Rank 1] World size: 4
+[Rank 1] HCCL timeout: 7200s
+[Rank 2] NPU device: npu:2
+[Rank 2] World size: 4
+[Rank 2] HCCL timeout: 7200s
+Loading model on CPU first (progressive loading to avoid OOM)...
+
+Loading model progressively to avoid OOM...
+Model config loaded: DeepseekV2Config
+  - Hidden size: 2048
+  - Num layers: 27
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:16<00:50, 16.99s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:18<00:56, 18.74s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:26<01:20, 26.95s/it]Loading checkpoint shards:  25%|██▌       | 1/4 [00:28<01:24, 28.02s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:35<00:35, 17.60s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:38<00:38, 19.17s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:53<00:18, 18.05s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:54<00:55, 27.57s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:57<00:57, 28.68s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:58<00:19, 19.52s/it]Loading checkpoint shards: 100%|██████████| 4/4 [01:05<00:00, 15.55s/it]Loading checkpoint shards: 100%|██████████| 4/4 [01:05<00:00, 16.33s/it]
+Total parameters: 15,706,484,224
+Expected parameters per TP rank: 3,926,621,056
+
+============================================================
+Model Structure Inspection
+============================================================
+Layer 0 structure:
+  - self_attn: DeepseekV2Attention
+  - mlp: DeepseekV2MLP
+============================================================
+
+
+Applying tensor parallelism (tp_size=4)...
+[DeepSeek-V2 Detection] Using specialized DeepSeek-V2 TP conversion
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+Loading checkpoint shards: 100%|██████████| 4/4 [01:10<00:00, 16.77s/it]Loading checkpoint shards: 100%|██████████| 4/4 [01:10<00:00, 17.68s/it]
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 0] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+Tensor parallelism applied!
+Rank 0 -> TP rank 0
+
+Running NPU compilation warmup...
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 2] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+Loading checkpoint shards:  75%|███████▌  | 3/4 [01:23<00:27, 27.96s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [01:26<00:28, 29.00s/it].Loading checkpoint shards: 100%|██████████| 4/4 [01:41<00:00, 24.02s/it]Loading checkpoint shards: 100%|██████████| 4/4 [01:41<00:00, 25.34s/it]
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+.[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+Loading checkpoint shards: 100%|██████████| 4/4 [01:45<00:00, 24.92s/it]Loading checkpoint shards: 100%|██████████| 4/4 [01:45<00:00, 26.30s/it]
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+.[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 1] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+.[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+.[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+[Rank 3] Converting DeepSeek-V2 MoE: 64 experts -> 16 local experts
+.........................[rank0]:[W331 16:42:13.178376570 compiler_depend.ts:79] Warning: [Check][offset] Check input storage_offset[%ld] = 0 failed, result is untrustworthy128 (function operator())
+.......................................NPU compilation warmup complete!
+
+Starting training...
+Total steps: 2
+Log interval: 1
+................................Step 0/2 | Loss: 18.8048 | Aux: 0.000000 | LR: 2.00e-05 | Tokens/sec: 0
+Step 1/2 | Loss: 18.5557 | Aux: 0.000000 | LR: 4.00e-05 | Tokens/sec: 2
+....
+Average auxiliary loss: 0.000000
+
+[Rank 0] Final model saved to artifacts/20260331_npu_compat/train_tp_moe_4card_smoke/final_model/rank_0
+
+Training completed!
