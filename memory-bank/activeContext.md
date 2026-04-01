@@ -62,7 +62,11 @@ The current focus is to keep the low-CANN 910A stack runnable on real hardware, 
 - Treat the current `storage_offset` warning as a contained baseline backward/compiler diagnostic, not a release blocker, unless a future minimal repro shows a project-specific regression.
 
 ## Next Steps
-- Ascend 910A phase is wrapping up. Focus on final documentation and handoff.
+- [x] Git commit all work (9 commits, 109 files)
+- [x] Create completion report at `docs/project-status/COMPLETION_REPORT.md`
+- [ ] Push branch to remote
+- [ ] Archive `.context/remote-npu-compat-20260331/` key files to persistent storage
+- Ascend 910A phase complete.
 - Collect actual long-run training logs and feed them into `tools/npu_compat_log_analyze.py` to iteratively update signature patterns.
 - Benchmark compatibility fallback overhead on the real device before it is reclaimed.
 - Improve profiling/autotune for 910A-specific training recipes.

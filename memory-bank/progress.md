@@ -55,7 +55,22 @@
 - [x] Verified the custom `TPAttention` backward smoke does not emit the same `storage_offset` warning at a matched shape.
 
 ## In Progress
-- [ ] Final documentation and handoff for Ascend 910A phase.
+- [x] Final documentation and handoff for Ascend 910A phase.
+
+## Git Commit Summary
+| Commit | Description |
+|--------|-------------|
+| b005376 | NPU compatibility layer + checkpoint utils |
+| 3c43d8f | Diagnostic tools (6 tools) |
+| 007dd60 | Comprehensive test coverage (6 tests) |
+| b743aa2 | Project documentation (11 docs) |
+| 154015f | Memory bank for agent continuity |
+| 3428834 | Autograd-aware collectives integration |
+| ae8c80f | Smoke-run flags for TP training |
+| ba80d06 | CLAUDE.md architecture update |
+| dcc45c6 | Cleanup pycache files |
+
+**Total**: 9 commits, 109 files tracked, 59 key source/doc/test files
 
 ## Known Issues
 - Hybrid TP+DDP group management is not fully completed in the custom TP training path.
