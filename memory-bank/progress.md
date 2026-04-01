@@ -53,12 +53,14 @@
 - [x] Filtered empirically benign `storage_offset/untrustworthy` and `ne 64-bit` warnings from offline compatibility log analysis.
 - [x] Shrunk the `storage_offset` repro to the original Qwen decoder-layer and `self_attn` backward path on real NPU.
 - [x] Verified the custom `TPAttention` backward smoke does not emit the same `storage_offset` warning at a matched shape.
+- [x] Synced remote 910A validation artifacts to local git (32 files, 13.5KB+).
+- [x] Updated README.md with comprehensive feature documentation.
+- [x] Created CHANGELOG.md documenting all 910A phase changes.
 
 ## In Progress
-- [x] Final documentation and handoff for Ascend 910A phase.
-- [x] Remote artifacts synced to local git (32 files, 13.5KB+)
+- [ ] Final documentation and handoff for Ascend 910A phase.
 
-## Git Commit Summary
+## Git Commit Summary (Final)
 | Commit | Description |
 |--------|-------------|
 | b005376 | NPU compatibility layer + checkpoint utils |
@@ -70,8 +72,13 @@
 | ae8c80f | Smoke-run flags for TP training |
 | ba80d06 | CLAUDE.md architecture update |
 | dcc45c6 | Cleanup pycache files |
+| 3b1ab8c | Memory Bank handoff update |
+| 842fc3c | Remote artifacts sync (32 files) |
+| f3e153e | Artifact sync completion |
+| 74bec54 | Artifact sync report |
+| 48f4083 | README update + CHANGELOG |
 
-**Total**: 9 commits, 109 files tracked, 59 key source/doc/test files
+**Total**: 14 commits (本轮), 24 commits (总计), 143 files tracked
 
 ## Known Issues
 - Hybrid TP+DDP group management is not fully completed in the custom TP training path.
@@ -102,3 +109,4 @@
 | NPU compatibility layer (phase 4: log-analysis tooling) | Completed | 2026-03-26 |
 | NPU compatibility layer (phase 5: patch templates + broader wrapper coverage) | Completed | 2026-03-31 |
 | NPU compatibility layer (phase 6: real-device validation + benchmark) | Completed | 2026-03-31 |
+| Remote artifact sync and final documentation | Completed | 2026-04-01 |
