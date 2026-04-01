@@ -1,6 +1,6 @@
 # NPU Training Project
 
-LLM training on Huawei Ascend 910A NPU with support for Data Parallel (DDP), Pipeline Parallel (PP), and custom Tensor Parallelism (TP).
+LLM training on Huawei Ascend 910A NPU with support for Data Parallel (DDP), Pipeline Parallel (PP), custom Tensor Parallelism (TP), and DeepSeek MoE.
 
 ## Environment
 
@@ -12,8 +12,13 @@ LLM training on Huawei Ascend 910A NPU with support for Data Parallel (DDP), Pip
 ## Quick Start
 
 ```bash
-# Single NPU training (~30 minutes)
+# Single NPU training
 chmod +x run.sh && ./run.sh
+
+# CPU smoke tests (no NPU required)
+python tests/test_npu_compat_layer.py
+python tests/test_npu_compat_log_analyze.py
+python tests/test_tp_attention_compat.py
 ```
 
 ## Training Modes
@@ -38,18 +43,84 @@ chmod +x run_pp.sh && ./run_pp.sh --pp_size 4
 ### Tensor Parallel (TP) - Custom Implementation
 Splits weights across NPUs using custom `npu_parallel` module (Megatron-LM style).
 ```bash
-python examples/train_tp_custom.py --model_path "/path/to/model" --tp_size 4
+# Single NPU TP smoke test
+python examples/train_tp_custom.py \
+  --model_path "/path/to/model" \
+  --tp_size 1 --max_steps 2 --skip_save
+
+# 4-card TP training (on 910A)
+torchrun --nproc_per_node=4 examples/train_tp_custom.py \
+  --model_path "/path/to/model" \
+  --tp_size 4 --max_steps 100
+
+# With compatibility report
+python examples/train_tp_custom.py \
+  --model_path "/path/to/model" \
+  --tp_size 4 --max_steps 10 \
+  --compat_report_file compat_report.json
+```
+
+### DeepSeek MoE with TP
+```bash
+torchrun --nproc_per_node=4 examples/train_tp_moe.py \
+  --model_path "/path/to/DeepSeek-V2-Lite" \
+  --tp_size 4 --max_steps 2 --skip_save
 ```
 
 ## npu_parallel Module
 
 Custom Tensor Parallelism implementation for Ascend NPU/HCCL:
 
-- **tp_layers.py**: `ColumnParallelLinear`, `RowParallelLinear`
-- **tp_attention.py**: `TPAttention`, `TPMLP` with SwiGLU
-- **convert_model.py**: Auto-convert HuggingFace models to TP
+| Component | Description |
+|-----------|-------------|
+| `tp_layers.py` | `ColumnParallelLinear`, `RowParallelLinear` with autograd-aware collectives |
+| `tp_attention.py` | `TPAttention`, `TPMLP` with SwiGLU |
+| `tp_moe.py` | `TPMoERouter`, expert parallelism, DeepSeek compatibility |
+| `convert_model.py` | Auto-convert HuggingFace models to TP |
+| `checkpoint_utils.py` | TP checkpoint save/load with optimizer state |
+| `npu_compat.py` | NPU compatibility layer for low-CANN environments |
 
 Supported models: Qwen/Qwen2/Qwen2.5, Llama, Mistral, Gemma, Phi, Yi, DeepSeek, Baichuan, GPT-2.
+
+### NPU Compatibility Layer
+
+For Ascend 910A + lower CANN environments where certain operators may fail:
+
+```python
+# Policy: fallback (default), warn, or strict
+python examples/train_tp_moe.py \
+  --model_path "/path/to/model" \
+  --tp_size 4 \
+  --compat_policy fallback \
+  --compat_report_file report.json
+
+# Analyze logs for new error signatures
+python tools/npu_compat_log_analyze.py logs/
+
+# Benchmark raw vs safe paths
+python tools/npu_compat_benchmark.py --device npu:0
+```
+
+## TP Checkpoint Tooling
+
+```bash
+# Inspect checkpoint
+python tools/tp_checkpoint.py /path/to/checkpoint --inspect
+
+# Export merged checkpoint (single file)
+python tools/tp_checkpoint.py /path/to/checkpoint --export merged.bin
+
+# Reshard to different TP size
+python tools/tp_checkpoint.py /path/to/checkpoint \
+  --reshard /path/to/new_checkpoint \
+  --new_tp_size 2
+
+# Resume training
+python examples/train_tp_custom.py \
+  --model_path "/path/to/model" \
+  --tp_size 4 \
+  --resume_from /path/to/checkpoint
+```
 
 ## Model Management
 
@@ -77,6 +148,15 @@ python3 -c "import torch_npu; print(torch.npu.is_available())"
 python3 tests/test_tp_conversion.py
 python3 tests/test_tp_mlp_only.py
 python3 tests/test_hccl_ops.py
+
+# Compatibility layer tests
+python3 tests/test_npu_compat_layer.py
+python3 tests/test_npu_compat_log_analyze.py
+python3 tests/test_tp_attention_compat.py
+
+# Checkpoint tests
+python3 tests/test_tp_checkpoint_tool.py
+python3 tests/test_tp_checkpoint_resume.py
 ```
 
 ## Configuration
@@ -87,3 +167,30 @@ python3 tests/test_hccl_ops.py
 | HTTP proxy | `http://127.0.0.1:7890` |
 | HF mirror | `https://hf-mirror.com` |
 | HCCL timeout | `1200s` |
+
+## Documentation
+
+- [Project Status Summary (CN)](docs/project-status/stage-results-short.zh.md)
+- [Project Status Summary (EN)](docs/project-status/stage-results-short.en.md)
+- [Completion Report](docs/project-status/COMPLETION_REPORT.md)
+- [Storage Offset Diagnosis](docs/project-status/storage_offset_diagnosis.md)
+
+## Memory Bank
+
+This project uses [Memory Bank](memory-bank/) for cross-session context continuity. Key files:
+- [Active Context](memory-bank/activeContext.md) - Current work and decisions
+- [Progress](memory-bank/progress.md) - Completed work and known issues
+- [System Patterns](memory-bank/systemPatterns.md) - Architecture decisions
+- [Tech Context](memory-bank/techContext.md) - Development environment
+
+## Project Status
+
+**Phase**: Ascend 910A development complete  
+**Key Achievements**:
+- ✅ NPU compatibility layer for low-CANN environments
+- ✅ TP checkpoint save/load/reshard/resume
+- ✅ DeepSeek-V2-Lite MoE TP training
+- ✅ Real-device validation on 8-card 910A
+- ✅ Comprehensive diagnostic tooling
+
+See [docs/project-status/](docs/project-status/) for detailed status.
