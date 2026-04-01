@@ -27,6 +27,30 @@ Supported Model Families:
 from .tp_layers import ColumnParallelLinear, RowParallelLinear, TPProcessGroup
 from .tp_moe import TPMoELayer, TPDeepSeekMoE
 from .convert_model import convert_to_tp, sync_gradients_tp
+from .checkpoint_utils import load_tp_rank_checkpoint, save_tp_rank_checkpoint, write_tp_state_dict_shards
+from .npu_compat import (
+    analyze_error_messages,
+    analyze_log_file,
+    analyze_log_text,
+    build_outcome_objective,
+    build_signature_update_plan,
+    classify_runtime_error,
+    compatibility_report,
+    get_compat_policy,
+    get_fallback_stats,
+    get_perf_counters,
+    known_error_signatures,
+    recommended_action,
+    render_signature_patch_template,
+    reset_fallback_stats,
+    runtime_info,
+    safe_has_any_tokens,
+    safe_nonzero,
+    safe_softmax,
+    safe_topk,
+    set_compat_policy,
+    supports_op,
+)
 
 __version__ = "0.2.0"
 __all__ = [
@@ -37,4 +61,28 @@ __all__ = [
     "TPDeepSeekMoE",
     "convert_to_tp",
     "sync_gradients_tp",
+    "save_tp_rank_checkpoint",
+    "load_tp_rank_checkpoint",
+    "write_tp_state_dict_shards",
+    "runtime_info",
+    "analyze_error_messages",
+    "analyze_log_text",
+    "analyze_log_file",
+    "build_outcome_objective",
+    "build_signature_update_plan",
+    "classify_runtime_error",
+    "compatibility_report",
+    "get_compat_policy",
+    "set_compat_policy",
+    "get_fallback_stats",
+    "get_perf_counters",
+    "known_error_signatures",
+    "recommended_action",
+    "render_signature_patch_template",
+    "reset_fallback_stats",
+    "supports_op",
+    "safe_topk",
+    "safe_softmax",
+    "safe_has_any_tokens",
+    "safe_nonzero",
 ]

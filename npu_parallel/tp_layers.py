@@ -87,6 +87,40 @@ def all_gather_forward(input_tensor, group=None, tp_size=None):
     return AllGatherFromTensor.apply(input_tensor, group, tp_size)
 
 
+class AllReduceFromTensor(torch.autograd.Function):
+    """Custom autograd-aware all_reduce(sum) for TP outputs."""
+
+    @staticmethod
+    def forward(ctx, input_tensor, group, cast_to_float32):
+        ctx.group = group
+        ctx.input_dtype = input_tensor.dtype
+        needs_cast = bool(cast_to_float32 and input_tensor.dtype == torch.bfloat16)
+        output = input_tensor.to(torch.float32) if needs_cast else input_tensor.clone()
+        dist.all_reduce(output, op=dist.ReduceOp.SUM, group=group)
+        if needs_cast:
+            output = output.to(ctx.input_dtype)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_output
+        grad_dtype = grad_input.dtype
+        needs_cast = bool(grad_dtype == torch.bfloat16)
+        if needs_cast:
+            grad_input = grad_input.to(torch.float32)
+        dist.all_reduce(grad_input, op=dist.ReduceOp.SUM, group=ctx.group)
+        if needs_cast:
+            grad_input = grad_input.to(grad_dtype)
+        return grad_input, None, None
+
+
+def all_reduce_forward(input_tensor, group=None, cast_to_float32=False):
+    """Wrapper for the autograd-aware all_reduce(sum) helper."""
+    if group is None:
+        group = dist.group.WORLD
+    return AllReduceFromTensor.apply(input_tensor, group, cast_to_float32)
+
+
 class ColumnParallelLinear(nn.Module):
     """
     Column Parallel Linear Layer
@@ -276,12 +310,7 @@ class RowParallelLinear(nn.Module):
         # Note: HCCL may not support bfloat16, so cast to float32 if needed
         if self.tp_size > 1:
             group = self.tp_group if self.tp_group is not None else dist.group.WORLD
-            original_dtype = out.dtype
-            if original_dtype == torch.bfloat16:
-                out = out.to(torch.float32)
-            dist.all_reduce(out, op=dist.ReduceOp.SUM, group=group)
-            if original_dtype == torch.bfloat16:
-                out = out.to(original_dtype)
+            out = all_reduce_forward(out, group=group, cast_to_float32=True)
 
         return out
 

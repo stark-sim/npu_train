@@ -25,6 +25,8 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from typing import Optional, Tuple
 
+from .npu_compat import safe_has_any_tokens, safe_softmax, safe_topk
+
 
 class AllToAllFromTensor(torch.autograd.Function):
     """
@@ -325,10 +327,11 @@ class TPMoERouter(nn.Module):
         router_logits = self.gate(x_flat)  # [batch*seq, num_experts]
 
         # Top-k selection
-        routing_weights, expert_indices = torch.topk(
-            F.softmax(router_logits, dim=-1),
+        normalized_router_logits = safe_softmax(router_logits.float(), dim=-1)
+        routing_weights, expert_indices = safe_topk(
+            normalized_router_logits,
             k=self.top_k,
-            dim=-1
+            dim=-1,
         )
 
         # Normalize weights (they sum to k, not 1, due to topk)
@@ -1062,7 +1065,11 @@ def convert_deepseek_v2_moe_to_tp(
             # Fallback: treat single output as router_logits and run topk
             router_logits = gate_output if not isinstance(gate_output, tuple) else gate_output[0]
             flat_router_logits = router_logits.view(-1, router_logits.size(-1))
-            topk_weights, expert_indices = flat_router_logits.topk(getattr(self.gate, 'n_grouped_experts', getattr(self.gate, 'top_k', 6)), dim=-1)
+            topk_weights, expert_indices = safe_topk(
+                flat_router_logits,
+                k=getattr(self.gate, 'n_grouped_experts', getattr(self.gate, 'top_k', 6)),
+                dim=-1,
+            )
             router_logits = topk_weights.view(batch_size, sequence_length, -1)
             expert_indices = expert_indices.view(batch_size, sequence_length, -1)
 
@@ -1072,7 +1079,7 @@ def convert_deepseek_v2_moe_to_tp(
         flat_hidden_states = hidden_states.view(-1, hidden_dim)  # [batch*seq, hidden_dim]
 
         # Normalize weights (convert to float first for NPU compatibility)
-        topk_weights = flat_router_logits.float().softmax(dim=-1)  # [batch*seq, top_k]
+        topk_weights = safe_softmax(flat_router_logits.float(), dim=-1)  # [batch*seq, top_k]
 
         # Initialize output
         output = torch.zeros_like(flat_hidden_states)
@@ -1088,7 +1095,7 @@ def convert_deepseek_v2_moe_to_tp(
             tokens_for_expert = expert_mask_float.sum(dim=-1)  # [batch*seq]
 
             # Check if any token is assigned to this expert
-            if tokens_for_expert.max().item() == 0:
+            if not safe_has_any_tokens(tokens_for_expert):
                 continue
 
             # Get weights for this expert's tokens (sum across top_k for tokens that selected this expert)
