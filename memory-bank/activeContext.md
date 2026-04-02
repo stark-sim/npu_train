@@ -62,11 +62,29 @@ The current focus is to keep the low-CANN 910A stack runnable on real hardware, 
 - Treat the current `storage_offset` warning as a contained baseline backward/compiler diagnostic, not a release blocker, unless a future minimal repro shows a project-specific regression.
 
 ## Next Steps
-- [x] Git commit all work (11 commits, 141 files)
+- [x] Git commit all work (27 commits, 145 files)
 - [x] Create completion report at `docs/project-status/COMPLETION_REPORT.md`
 - [x] Remote validation artifacts synced to `.context/remote-npu-compat-20260331/`
-- [ ] Push branch to remote when ready
-- Ascend 910A phase complete.
+- [x] Push branch to remote: `git push origin stark-sim/real-moe-smoke`
+- [x] Create archive tag: `v910a-complete-20260402`
+- [x] **PROJECT ARCHIVED** ✅
+
+## Archive Information
+- **Status**: Archived (2026-04-02)
+- **Tag**: `v910a-complete-20260402`
+- **Branch**: `stark-sim/real-moe-smoke`
+- **Location**: GitHub (origin)
+
+## Project History
+| Phase | Date | Status |
+|-------|------|--------|
+| Initial baseline | 2026-01-22 | ✅ Complete |
+| TP implementation | 2026-01-28 | ✅ Complete |
+| MoE support | 2026-01-29 | ✅ Complete |
+| Real-data training | 2026-02-05 | ✅ Complete |
+| Checkpoint tooling | 2026-03-26 | ✅ Complete |
+| NPU compat layer | 2026-03-31 | ✅ Complete |
+| **Final archive** | **2026-04-02** | **✅ ARCHIVED** |
 - Collect actual long-run training logs and feed them into `tools/npu_compat_log_analyze.py` to iteratively update signature patterns.
 - Benchmark compatibility fallback overhead on the real device before it is reclaimed.
 - Improve profiling/autotune for 910A-specific training recipes.

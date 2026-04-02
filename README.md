@@ -1,5 +1,9 @@
 # NPU Training Project
 
+> **⚠️ PROJECT STATUS: ARCHIVED (2026-04-02)**  
+> This project has been completed and archived. See [ARCHIVE_STATUS.md](ARCHIVE_STATUS.md) for details.  
+> Tag: `v910a-complete-20260402` | Branch: `stark-sim/real-moe-smoke`
+
 LLM training on Huawei Ascend 910A NPU with support for Data Parallel (DDP), Pipeline Parallel (PP), custom Tensor Parallelism (TP), and DeepSeek MoE.
 
 ## Environment
