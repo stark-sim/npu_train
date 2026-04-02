@@ -1,0 +1,1 @@
+NPU compatibility-layer smoke test: OK

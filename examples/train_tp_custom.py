@@ -9,6 +9,7 @@ Works when PyTorch native TP is not compatible with NPU backend.
 import os
 import time
 import argparse
+import json
 import torch
 import torch_npu
 import torch.distributed as dist
@@ -23,6 +24,8 @@ from transformers import (
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from npu_parallel import convert_to_tp, sync_gradients_tp
+from npu_parallel.checkpoint_utils import load_tp_rank_checkpoint, save_tp_rank_checkpoint
+from npu_parallel.npu_compat import compatibility_report, reset_fallback_stats, set_compat_policy
 
 
 def setup_npu():
@@ -55,6 +58,8 @@ def get_args():
                         help="Max sequence length (default: 512)")
     parser.add_argument("--epochs", type=int, default=1,
                         help="Number of epochs (default: 1)")
+    parser.add_argument("--max_steps", type=int, default=None,
+                        help="Override the default fixed training-step budget")
     parser.add_argument("--lr", type=float, default=1e-4,
                         help="Learning rate (default: 1e-4)")
     parser.add_argument("--warmup_steps", type=int, default=5,
@@ -63,6 +68,16 @@ def get_args():
                         help="Log every N steps (default: 2)")
     parser.add_argument("--save_path", type=str, default="./output_tp_custom",
                         help="Model save path")
+    parser.add_argument("--resume_from", type=str, default=None,
+                        help="Resume from a TP checkpoint directory")
+    parser.add_argument("--compat_policy", choices=["fallback", "warn", "strict"], default=None,
+                        help="Compatibility fallback policy")
+    parser.add_argument("--compat_report", action="store_true",
+                        help="Print compatibility report before training")
+    parser.add_argument("--compat_report_file", type=str, default=None,
+                        help="Write post-training compatibility report JSON (rank 0 only)")
+    parser.add_argument("--skip_save", action="store_true",
+                        help="Skip checkpoint/model save for smoke runs")
     return parser.parse_args()
 
 
@@ -120,13 +135,42 @@ def prepare_synthetic_data(args, tokenizer, rank):
     return dataloader
 
 
+def maybe_write_compat_report(report_path, rank, args, completed_step):
+    if rank != 0 or not report_path:
+        return
+
+    report_payload = {
+        "context": {
+            "script": os.path.basename(__file__),
+            "model_path": args.model_path,
+            "tp_size": args.tp_size,
+            "world_size": getattr(args, "world_size", None),
+            "max_steps": args.max_steps,
+            "completed_step": int(completed_step),
+        },
+        "report": compatibility_report(device_type="npu"),
+    }
+
+    report_dir = os.path.dirname(report_path)
+    if report_dir:
+        os.makedirs(report_dir, exist_ok=True)
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report_payload, handle, indent=2, sort_keys=True)
+    print(f"[Rank {rank}] Wrote compatibility report to {report_path}")
+
+
 def main():
     """Main training function"""
     args = get_args()
+    if args.compat_policy is not None:
+        set_compat_policy(args.compat_policy)
 
     # Setup distributed
     rank, world_size, device = setup_npu()
     args.world_size = world_size
+    if rank == 0 and args.compat_report:
+        print("[Compatibility Report]")
+        print(json.dumps(compatibility_report(device_type="npu"), indent=2, sort_keys=True))
 
     # Calculate TP rank based on world_size and tp_size
     # For pure TP (world_size == tp_size), each rank is its own TP rank
@@ -198,7 +242,7 @@ def main():
     )
 
     # Scheduler
-    num_training_steps = 50  # Simplified for testing
+    num_training_steps = args.max_steps if args.max_steps is not None else 50  # Simplified for testing
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
         num_warmup_steps=args.warmup_steps,
@@ -207,6 +251,21 @@ def main():
 
     # Prepare data
     dataloader = prepare_synthetic_data(args, tokenizer, rank)
+
+    start_step = 0
+    if args.resume_from:
+        restored_state = load_tp_rank_checkpoint(
+            args.resume_from,
+            model,
+            rank,
+            optimizer=optimizer,
+            scheduler=scheduler,
+        )
+        start_step = int(restored_state.get("step", -1)) + 1
+        if rank == 0:
+            print(f"Resumed TP checkpoint from {args.resume_from} at step {start_step}")
+
+    reset_fallback_stats()
 
     # Training settings
     model.train()
@@ -217,7 +276,7 @@ def main():
         print(f"Log interval: {args.log_interval}")
 
     # Training loop
-    step = 0
+    step = start_step
     start_time = time.time()
     for epoch in range(args.epochs):
         dataloader.sampler.set_epoch(epoch)
@@ -251,17 +310,21 @@ def main():
                 print(f"Step {step}/{num_training_steps} | Loss: {loss_value:.4f} | LR: {lr:.2e} | Tokens/sec: {tokens_per_sec:.0f}")
 
             # Save checkpoint periodically
-            if rank == 0 and step % 25 == 0 and step > 0:
+            if not args.skip_save and step % 25 == 0 and step > 0:
                 save_path = os.path.join(args.save_path, f"checkpoint_step_{step}")
-                os.makedirs(save_path, exist_ok=True)
-
-                # Save TP model - need to gather weights or save per rank
-                # For simplicity, save each rank separately
-                save_path_rank = os.path.join(save_path, f"rank_{rank}")
-                os.makedirs(save_path_rank, exist_ok=True)
-                torch.save(model.state_dict(), os.path.join(save_path_rank, "model.pt"))
-                tokenizer.save_pretrained(save_path_rank)
-                print(f"[Rank {rank}] Saved checkpoint to {save_path_rank}")
+                save_path_rank = save_tp_rank_checkpoint(
+                    save_path,
+                    model,
+                    rank,
+                    args.tp_size,
+                    tokenizer=tokenizer if rank == 0 else None,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    training_state={"step": step, "epoch": epoch},
+                    extra_metadata={"source": "train_tp_custom.py", "step": step},
+                )
+                if rank == 0:
+                    print(f"[Rank {rank}] Saved checkpoint to {save_path_rank}")
 
             step += 1
             if step >= num_training_steps:
@@ -270,15 +333,26 @@ def main():
         if step >= num_training_steps:
             break
 
-    # Final save
-    if rank == 0:
+    if args.skip_save:
+        if rank == 0:
+            print("\n[Rank 0] Skipped checkpoint/model save (--skip_save)")
+    else:
         final_path = os.path.join(args.save_path, "final_model")
-        os.makedirs(final_path, exist_ok=True)
-        save_path_rank = os.path.join(final_path, f"rank_{rank}")
-        os.makedirs(save_path_rank, exist_ok=True)
-        torch.save(model.state_dict(), os.path.join(save_path_rank, "model.pt"))
-        tokenizer.save_pretrained(save_path_rank)
-        print(f"\n[Rank {rank}] Final model saved to {save_path_rank}")
+        save_path_rank = save_tp_rank_checkpoint(
+            final_path,
+            model,
+            rank,
+            args.tp_size,
+            tokenizer=tokenizer if rank == 0 else None,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            training_state={"step": max(step - 1, 0), "epoch": args.epochs - 1, "final": True},
+            extra_metadata={"source": "train_tp_custom.py", "final": True},
+        )
+        if rank == 0:
+            print(f"\n[Rank {rank}] Final model saved to {save_path_rank}")
+
+    maybe_write_compat_report(args.compat_report_file, rank, args, max(step - 1, -1))
 
     # Cleanup
     dist.destroy_process_group()

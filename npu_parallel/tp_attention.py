@@ -26,7 +26,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
-from .tp_layers import ColumnParallelLinear, RowParallelLinear
+from .tp_layers import ColumnParallelLinear, RowParallelLinear, all_reduce_forward
+from .npu_compat import safe_softmax
 
 # Check if SDPA is available (PyTorch 2.0+)
 try:
@@ -166,7 +167,7 @@ class TPOutputParallel(nn.Module):
         out = F.linear(x, self.weight, self.bias)
 
         if self.tp_size > 1:
-            dist.all_reduce(out, op=dist.ReduceOp.SUM)
+            out = all_reduce_forward(out, cast_to_float32=True)
 
         return out
 
@@ -386,7 +387,7 @@ class TPAttention(nn.Module):
             attn_scores = attn_scores + attention_mask
 
         # Softmax
-        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attn_weights = safe_softmax(attn_scores.float(), dim=-1)
 
         # Attention output: attn_weights @ V
         attn_output = torch.matmul(attn_weights, v)

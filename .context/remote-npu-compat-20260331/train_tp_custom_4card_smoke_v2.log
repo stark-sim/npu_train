@@ -1,0 +1,66 @@
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+W0331 16:26:39.341000 342695 site-packages/torch/distributed/run.py:793] 
+W0331 16:26:39.341000 342695 site-packages/torch/distributed/run.py:793] *****************************************
+W0331 16:26:39.341000 342695 site-packages/torch/distributed/run.py:793] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0331 16:26:39.341000 342695 site-packages/torch/distributed/run.py:793] *****************************************
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/latest owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+/home/sd/miniconda3/envs/npu_train/lib/python3.11/site-packages/torch_npu/utils/collect_env.py:58: UserWarning: Warning: The /usr/local/Ascend/ascend-toolkit/8.1.RC1/aarch64-linux/ascend_toolkit_install.info owner does not match the current owner.
+  warnings.warn(f"Warning: The {path} owner does not match the current owner.")
+[W331 16:26:45.267313310 compiler_depend.ts:873] Warning: The HCCL execution timeout 7200000ms is bigger than watchdog timeout 1800000ms which is set by init_process_group! The plog may not be recorded. (function ProcessGroupHCCL)
+[Rank 3] NPU device: npu:3
+[Rank 3] World size: 4
+[Rank 0] NPU device: npu:0
+[Rank 0] World size: 4
+
+============================================================
+Tensor Parallel Training - Custom NPU TP
+============================================================
+Model: /home/sd/npu_train/models/Qwen-Qwen2.5-1.5B-Instruct
+TP Size: 4
+World Size: 4
+Batch Size: 1
+Max Length: 64
+Device: NPU
+============================================================
+
+[Rank 2] NPU device: npu:2
+[Rank 2] World size: 4
+`torch_dtype` is deprecated! Use `dtype` instead!
+[Rank 1] NPU device: npu:1
+[Rank 1] World size: 4
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Total parameters: 1,543,714,304
+Expected parameters per TP rank: 385,928,576
+
+Applying custom tensor parallelism (tp_size=4)...
+Tensor parallelism applied!
+Rank 0 -> TP rank 0
+
+Starting training...
+Total steps: 2
+Log interval: 1
+[rank0]:[W331 16:27:17.353083800 compiler_depend.ts:79] Warning: [Check][offset] Check input storage_offset[%ld] = 0 failed, result is untrustworthy64 (function operator())
+.......................Step 0/2 | Loss: 15.8872 | LR: 2.00e-05 | Tokens/sec: 0
+Step 1/2 | Loss: 16.2149 | LR: 4.00e-05 | Tokens/sec: 2
+....
+[Rank 0] Final model saved to artifacts/20260331_npu_compat/train_tp_custom_4card_smoke_v2/final_model/rank_0
+
+Training completed!
